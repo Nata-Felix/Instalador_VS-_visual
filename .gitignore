@@ -1,0 +1,11 @@
+# Arquivos gerados e redistribuíveis publicados como assets da release
+/VisualCppInstaller.exe
+/packages/
+/*.zip
+
+# Arquivos temporários do Visual Studio e do Windows
+bin/
+obj/
+.vs/
+*.user
+Thumbs.db
