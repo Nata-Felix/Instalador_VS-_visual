@@ -6,14 +6,16 @@ using System.Drawing;
 using System.IO;
 using System.Net;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Windows.Forms;
+using Microsoft.Win32;
 
 [assembly: AssemblyTitle("VisualCppInstaller")]
 [assembly: AssemblyProduct("Instalador Microsoft Visual C++")]
 [assembly: AssemblyCompany("SOLPPE")]
-[assembly: AssemblyVersion("1.0.0.0")]
-[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyVersion("1.1.0.0")]
+[assembly: AssemblyFileVersion("1.1.0.0")]
 
 namespace VisualCppInstaller
 {
@@ -38,6 +40,7 @@ namespace VisualCppInstaller
         private readonly Color muted = Color.FromArgb(110, 119, 135);
 
         private readonly List<PackageItem> packages = new List<PackageItem>();
+        private readonly List<PackageItem> displayItems = new List<PackageItem>();
         private readonly ListView packageList = new ListView();
         private readonly ProgressBar progressBar = new ProgressBar();
         private readonly Label progressLabel = new Label();
@@ -49,6 +52,12 @@ namespace VisualCppInstaller
         private readonly Button closeButton = new Button();
         private readonly Button copyLogButton = new Button();
         private readonly CheckBox closeWhenDone = new CheckBox();
+        private readonly CheckBox net35CheckBox = new CheckBox();
+        private readonly CheckBox net48CheckBox = new CheckBox();
+        private readonly CheckBox crystal2008CheckBox = new CheckBox();
+        private PackageItem net35Package;
+        private PackageItem net48Package;
+        private PackageItem crystal2008Package;
         private BackgroundWorker worker;
         private volatile bool cancelRequested;
         private Process runningProcess;
@@ -79,30 +88,52 @@ namespace VisualCppInstaller
 
         private void BuildPackages()
         {
-            packages.Add(new PackageItem("2005 SP1", "8.0.61001", "x86", "vc2005_x86.exe",
+            net35Package = new PackageItem(".NET 3.5", "Recurso Windows", "x86/x64", "DotNet35Setup.exe",
+                "https://go.microsoft.com/fwlink/?LinkID=2337635", "/quiet /norestart",
+                ".NET Framework 3.5", PackageKind.NetFx3, true, "");
+            net48Package = new PackageItem(".NET 4.8", "4.8", "x86/x64", "dotnet48.exe",
+                "https://go.microsoft.com/fwlink/?linkid=2088631", "/q /norestart",
+                ".NET Framework 4.8", PackageKind.NetFx48, true, "");
+            crystal2008Package = new PackageItem("Crystal 2008", "10.5.0.0", "x86", "CRRedist2008_x86.msi",
+                "https://github.com/Nata-Felix/VisualCppInstaller/releases/download/v1.1.0/CRRedist2008_x86.msi", "",
+                "Crystal Reports 2008 Runtime x86", PackageKind.Msi, true,
+                "867267BBCCE888970B5633A8C527F286D80F026FBB72E63608032872D81D6257");
+
+            displayItems.Add(net35Package);
+            displayItems.Add(net48Package);
+
+            AddVisualCpp(new PackageItem("2005 SP1", "8.0.61001", "x86", "vc2005_x86.exe",
                 "https://download.microsoft.com/download/8/b/4/8b42259f-5d70-43f4-ac2e-4b208fd8d66a/vcredist_x86.EXE", "/Q"));
-            packages.Add(new PackageItem("2005 SP1", "8.0.61001", "x64", "vc2005_x64.exe",
+            AddVisualCpp(new PackageItem("2005 SP1", "8.0.61001", "x64", "vc2005_x64.exe",
                 "https://download.microsoft.com/download/8/b/4/8b42259f-5d70-43f4-ac2e-4b208fd8d66a/vcredist_x64.EXE", "/Q"));
-            packages.Add(new PackageItem("2008 SP1", "9.0.30729.5677", "x86", "vc2008_x86.exe",
+            AddVisualCpp(new PackageItem("2008 SP1", "9.0.30729.5677", "x86", "vc2008_x86.exe",
                 "https://download.microsoft.com/download/5/D/8/5D8C65CB-C849-4025-8E95-C3966CAFD8AE/vcredist_x86.exe", "/q"));
-            packages.Add(new PackageItem("2008 SP1", "9.0.30729.5677", "x64", "vc2008_x64.exe",
+            AddVisualCpp(new PackageItem("2008 SP1", "9.0.30729.5677", "x64", "vc2008_x64.exe",
                 "https://download.microsoft.com/download/5/D/8/5D8C65CB-C849-4025-8E95-C3966CAFD8AE/vcredist_x64.exe", "/q"));
-            packages.Add(new PackageItem("2010 SP1", "10.0.40219.325", "x86", "vc2010_x86.exe",
+            AddVisualCpp(new PackageItem("2010 SP1", "10.0.40219.325", "x86", "vc2010_x86.exe",
                 "https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x86.exe", "/q /norestart"));
-            packages.Add(new PackageItem("2010 SP1", "10.0.40219.325", "x64", "vc2010_x64.exe",
+            AddVisualCpp(new PackageItem("2010 SP1", "10.0.40219.325", "x64", "vc2010_x64.exe",
                 "https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x64.exe", "/q /norestart"));
-            packages.Add(new PackageItem("2012 Update 4", "11.0.61030.0", "x86", "vc2012_x86.exe",
+            AddVisualCpp(new PackageItem("2012 Update 4", "11.0.61030.0", "x86", "vc2012_x86.exe",
                 "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x86.exe", "/install /quiet /norestart"));
-            packages.Add(new PackageItem("2012 Update 4", "11.0.61030.0", "x64", "vc2012_x64.exe",
+            AddVisualCpp(new PackageItem("2012 Update 4", "11.0.61030.0", "x64", "vc2012_x64.exe",
                 "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x64.exe", "/install /quiet /norestart"));
-            packages.Add(new PackageItem("2013", "12.0.40664.0", "x86", "vc2013_x86.exe",
+            AddVisualCpp(new PackageItem("2013", "12.0.40664.0", "x86", "vc2013_x86.exe",
                 "https://aka.ms/highdpimfc2013x86enu", "/install /quiet /norestart"));
-            packages.Add(new PackageItem("2013", "12.0.40664.0", "x64", "vc2013_x64.exe",
+            AddVisualCpp(new PackageItem("2013", "12.0.40664.0", "x64", "vc2013_x64.exe",
                 "https://aka.ms/highdpimfc2013x64enu", "/install /quiet /norestart"));
-            packages.Add(new PackageItem("2015-2025 (v14)", "mais recente", "x86", "vc14_x86.exe",
+            AddVisualCpp(new PackageItem("2015-2025 (v14)", "mais recente", "x86", "vc14_x86.exe",
                 "https://aka.ms/vc14/vc_redist.x86.exe", "/install /quiet /norestart"));
-            packages.Add(new PackageItem("2015-2025 (v14)", "mais recente", "x64", "vc14_x64.exe",
+            AddVisualCpp(new PackageItem("2015-2025 (v14)", "mais recente", "x64", "vc14_x64.exe",
                 "https://aka.ms/vc14/vc_redist.x64.exe", "/install /quiet /norestart"));
+
+            displayItems.Add(crystal2008Package);
+        }
+
+        private void AddVisualCpp(PackageItem item)
+        {
+            packages.Add(item);
+            displayItems.Add(item);
         }
 
         private void BuildLayout()
@@ -138,7 +169,7 @@ namespace VisualCppInstaller
         private void BuildContent(Control root)
         {
             root.Controls.Add(SectionLabel("Opção de instalação", 44, 158, 340));
-            Panel option = new Panel { Left = 42, Top = 186, Width = 358, Height = 82, BackColor = lightBlue };
+            Panel option = new Panel { Left = 42, Top = 186, Width = 358, Height = 156, BackColor = lightBlue };
             option.Paint += delegate(object sender, PaintEventArgs e) {
                 using (Pen p = new Pen(Color.FromArgb(54, 140, 230))) e.Graphics.DrawRectangle(p, 0, 0, option.Width - 1, option.Height - 1);
             };
@@ -146,13 +177,20 @@ namespace VisualCppInstaller
             option.Controls.Add(new PackageIcon { Left = 50, Top = 21, Width = 38, Height = 38, ForeColor = blue });
             option.Controls.Add(new Label { Text = "Microsoft Visual C++", Left = 100, Top = 14, Width = 220, Height = 27, Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.FromArgb(28, 36, 48) });
             option.Controls.Add(new Label { Text = "2005 a 2025 • x86 e x64", Left = 100, Top = 42, Width = 220, Height = 24, ForeColor = muted });
+            option.Controls.Add(new Panel { Left = 12, Top = 70, Width = 334, Height = 1, BackColor = border });
+            ConfigureOptionalCheckBox(net35CheckBox, "Adicionar .NET Framework 3.5", 76);
+            ConfigureOptionalCheckBox(net48CheckBox, "Adicionar .NET Framework 4.8", 101);
+            ConfigureOptionalCheckBox(crystal2008CheckBox, "Adicionar Crystal Reports 2008 (x86)", 126);
+            option.Controls.Add(net35CheckBox);
+            option.Controls.Add(net48CheckBox);
+            option.Controls.Add(crystal2008CheckBox);
             root.Controls.Add(option);
 
-            root.Controls.Add(SectionLabel("Ordem dos pacotes", 44, 286, 340));
-            packageList.Left = 42; packageList.Top = 314; packageList.Width = 358; packageList.Height = 236;
+            root.Controls.Add(SectionLabel("Ordem dos pacotes", 44, 354, 340));
+            packageList.Left = 42; packageList.Top = 382; packageList.Width = 358; packageList.Height = 168;
             packageList.View = View.Details; packageList.FullRowSelect = true; packageList.GridLines = true;
             packageList.HeaderStyle = ColumnHeaderStyle.Nonclickable; packageList.MultiSelect = false;
-            packageList.Columns.Add("Ano", 110); packageList.Columns.Add("Versão", 110); packageList.Columns.Add("Arq.", 45); packageList.Columns.Add("Status", 70);
+            packageList.Columns.Add("Componente", 100); packageList.Columns.Add("Versão", 95); packageList.Columns.Add("Arq.", 45); packageList.Columns.Add("Status", 95);
             root.Controls.Add(packageList);
 
             root.Controls.Add(SectionLabel("Progresso da execução", 420, 158, 360));
@@ -176,6 +214,17 @@ namespace VisualCppInstaller
             copyLogButton.FlatStyle = FlatStyle.Flat; copyLogButton.FlatAppearance.BorderColor = border; copyLogButton.BackColor = Color.White;
             copyLogButton.Click += delegate { if (!String.IsNullOrWhiteSpace(logBox.Text)) Clipboard.SetText(logBox.Text); };
             root.Controls.Add(copyLogButton);
+        }
+
+        private void ConfigureOptionalCheckBox(CheckBox checkBox, string text, int top)
+        {
+            checkBox.Text = text;
+            checkBox.Left = 18;
+            checkBox.Top = top;
+            checkBox.Width = 320;
+            checkBox.Height = 23;
+            checkBox.BackColor = lightBlue;
+            checkBox.ForeColor = Color.FromArgb(38, 48, 64);
         }
 
         private void BuildFooter(Control root)
@@ -216,10 +265,10 @@ namespace VisualCppInstaller
         private void PopulatePackageList()
         {
             packageList.Items.Clear();
-            foreach (PackageItem p in packages)
+            foreach (PackageItem p in displayItems)
             {
                 ListViewItem row = new ListViewItem(p.Year);
-                row.SubItems.Add(p.Version); row.SubItems.Add(p.Arch); row.SubItems.Add("Pendente");
+                row.SubItems.Add(p.Version); row.SubItems.Add(p.Arch); row.SubItems.Add(p.Optional ? "Opcional" : "Pendente");
                 p.Row = row; packageList.Items.Add(row);
             }
         }
@@ -227,14 +276,25 @@ namespace VisualCppInstaller
         private void StartInstall()
         {
             if (worker != null && worker.IsBusy) return;
-            if (MessageBox.Show("Os pacotes serão instalados em ordem de ano, sempre x86 antes de x64. Deseja continuar?",
+            if (MessageBox.Show("Os itens selecionados serão instalados com os pacotes Visual C++ em ordem de ano, sempre x86 antes de x64. Deseja continuar?",
                 "Instalador Microsoft Visual C++", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
 
+            List<PackageItem> plan = new List<PackageItem>();
+            if (net35CheckBox.Checked) plan.Add(net35Package);
+            if (net48CheckBox.Checked) plan.Add(net48Package);
+            plan.AddRange(packages);
+            if (crystal2008CheckBox.Checked) plan.Add(crystal2008Package);
+
             cancelRequested = false; restartRequired = false; failures = 0; logBox.Clear(); SetProgress(0);
-            foreach (PackageItem p in packages) UpdateRow(p, "Pendente", Color.White);
+            foreach (PackageItem p in displayItems)
+            {
+                bool selected = plan.Contains(p);
+                UpdateRow(p, selected ? "Pendente" : "Não selecionado", selected ? Color.White : Color.FromArgb(245, 245, 245));
+            }
             cacheDir = Path.Combine(Path.GetTempPath(), "VisualCppInstaller_Cache");
             Directory.CreateDirectory(cacheDir);
             installButton.Enabled = false; closeButton.Enabled = false; cancelButton.Enabled = true; closeWhenDone.Enabled = false;
+            SetOptionalControlsEnabled(false);
             statusLabel.Text = "Instalação em andamento";
 
             worker = new BackgroundWorker { WorkerReportsProgress = true };
@@ -243,50 +303,69 @@ namespace VisualCppInstaller
                 SetProgress(e.ProgressPercentage); currentStepLabel.Text = Convert.ToString(e.UserState);
             };
             worker.RunWorkerCompleted += InstallCompleted;
-            worker.RunWorkerAsync();
+            worker.RunWorkerAsync(plan);
         }
 
         private void InstallWorker(object sender, DoWorkEventArgs e)
         {
+            List<PackageItem> plan = (List<PackageItem>)e.Argument;
             int completed = 0;
+            int total = Math.Max(1, plan.Count);
             AppendLog("[INFO] Ordem: ano crescente, x86 e depois x64.");
             AppendLog("[INFO] Cache: " + cacheDir);
             AppendLog("[INFO] Sistema: " + (Environment.Is64BitOperatingSystem ? "64 bits" : "32 bits"));
 
-            foreach (PackageItem p in packages)
+            foreach (PackageItem p in plan)
             {
                 if (cancelRequested) { e.Cancel = true; return; }
                 if (p.Arch == "x64" && !Environment.Is64BitOperatingSystem)
                 {
                     UpdateRow(p, "Ignorado", Color.FromArgb(245, 245, 245));
                     AppendLog("[IGNORADO] " + p.DisplayName + " — Windows 32 bits.");
-                    completed++; worker.ReportProgress((completed * 100) / packages.Count, "Ignorado: " + p.DisplayName); continue;
+                    completed++; worker.ReportProgress((completed * 100) / total, "Ignorado: " + p.DisplayName); continue;
                 }
 
                 try
                 {
-                    string local = LocateOrDownload(p);
-                    if (cancelRequested) { e.Cancel = true; return; }
                     UpdateRow(p, "Instalando", Color.FromArgb(255, 249, 220));
-                    worker.ReportProgress((completed * 100) / packages.Count, "Instalando " + p.DisplayName);
+                    worker.ReportProgress((completed * 100) / total, "Instalando " + p.DisplayName);
                     AppendLog("[INSTALANDO] " + p.DisplayName);
 
-                    ProcessStartInfo psi = new ProcessStartInfo(local, p.Arguments) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(local) };
-                    using (Process process = Process.Start(psi))
+                    int code;
+                    bool alreadyInstalled = false;
+
+                    if (p.Kind == PackageKind.NetFx3 && IsNet35Installed())
                     {
-                        runningProcess = process;
-                        while (!process.WaitForExit(300))
-                        {
-                            if (cancelRequested) { TryKill(process); e.Cancel = true; return; }
-                        }
-                        runningProcess = null;
-                        int code = process.ExitCode;
-                        if (code == 3010 || code == 1641) restartRequired = true;
-                        if (code != 0 && code != 1638 && code != 3010 && code != 1641)
-                            throw new InvalidOperationException("ExitCode " + code);
-                        UpdateRow(p, code == 1638 ? "Já instalado" : "Concluído", Color.FromArgb(232, 250, 238));
-                        AppendLog("[OK] " + p.DisplayName + " — ExitCode " + code);
+                        code = 0;
+                        alreadyInstalled = true;
                     }
+                    else if (p.Kind == PackageKind.NetFx48 && IsNet48Installed())
+                    {
+                        code = 0;
+                        alreadyInstalled = true;
+                    }
+                    else if (p.Kind == PackageKind.NetFx3 && !RequiresStandaloneNet35())
+                    {
+                        code = RunProcessAndWait(new ProcessStartInfo("dism.exe", "/Online /Enable-Feature /FeatureName:NetFx3 /All /NoRestart")
+                        { UseShellExecute = false, CreateNoWindow = true });
+                    }
+                    else
+                    {
+                        string local = LocateOrDownload(p);
+                        if (cancelRequested) { e.Cancel = true; return; }
+                        code = RunProcessAndWait(CreateInstallerProcess(p, local));
+                    }
+
+                    if (code == 3010 || code == 1641) restartRequired = true;
+                    if (code != 0 && code != 1638 && code != 3010 && code != 1641)
+                        throw new InvalidOperationException("ExitCode " + code);
+                    UpdateRow(p, alreadyInstalled || code == 1638 ? "Já instalado" : "Concluído", Color.FromArgb(232, 250, 238));
+                    AppendLog("[OK] " + p.DisplayName + " — " + (alreadyInstalled ? "já estava instalado" : "ExitCode " + code));
+                }
+                catch (OperationCanceledException)
+                {
+                    e.Cancel = true;
+                    return;
                 }
                 catch (Exception ex)
                 {
@@ -296,7 +375,7 @@ namespace VisualCppInstaller
                 }
 
                 completed++;
-                worker.ReportProgress((completed * 100) / packages.Count, "Processado: " + p.DisplayName);
+                worker.ReportProgress((completed * 100) / total, "Processado: " + p.DisplayName);
             }
         }
 
@@ -304,14 +383,14 @@ namespace VisualCppInstaller
         {
             string appPackages = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "packages");
             string bundled = Path.Combine(appPackages, p.FileName);
-            if (IsExecutable(bundled))
+            if (IsPackageValid(p, bundled))
             {
                 AppendLog("[LOCAL] " + p.FileName);
                 return bundled;
             }
 
             string cached = Path.Combine(cacheDir, p.FileName);
-            if (IsExecutable(cached))
+            if (IsPackageValid(p, cached))
             {
                 AppendLog("[CACHE] " + p.FileName);
                 return cached;
@@ -337,7 +416,7 @@ namespace VisualCppInstaller
                     output.Write(buffer, 0, read);
                 }
             }
-            if (!IsExecutable(partial)) throw new InvalidDataException("O download não é um executável válido.");
+            if (!IsPackageValid(p, partial)) throw new InvalidDataException("O download não corresponde ao instalador esperado.");
             if (File.Exists(cached)) File.Delete(cached);
             File.Move(partial, cached);
             return cached;
@@ -353,9 +432,121 @@ namespace VisualCppInstaller
             catch { return false; }
         }
 
+        private static bool IsMsi(string path)
+        {
+            byte[] signature = new byte[] { 0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1 };
+            try
+            {
+                if (!File.Exists(path) || new FileInfo(path).Length < 1024) return false;
+                using (FileStream stream = File.OpenRead(path))
+                {
+                    for (int i = 0; i < signature.Length; i++)
+                        if (stream.ReadByte() != signature[i]) return false;
+                }
+                return true;
+            }
+            catch { return false; }
+        }
+
+        private static bool IsPackageValid(PackageItem item, string path)
+        {
+            bool validType = item.Kind == PackageKind.Msi ? IsMsi(path) : IsExecutable(path);
+            if (!validType) return false;
+            if (String.IsNullOrWhiteSpace(item.ExpectedSha256)) return true;
+
+            try
+            {
+                using (SHA256 sha = SHA256.Create())
+                using (FileStream stream = File.OpenRead(path))
+                {
+                    string actual = BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "");
+                    return String.Equals(actual, item.ExpectedSha256, StringComparison.OrdinalIgnoreCase);
+                }
+            }
+            catch { return false; }
+        }
+
+        private ProcessStartInfo CreateInstallerProcess(PackageItem item, string localPath)
+        {
+            if (item.Kind == PackageKind.Msi)
+            {
+                return new ProcessStartInfo("msiexec.exe", "/i \"" + localPath + "\" /qn /norestart")
+                { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(localPath) };
+            }
+
+            return new ProcessStartInfo(localPath, item.Arguments)
+            { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(localPath) };
+        }
+
+        private int RunProcessAndWait(ProcessStartInfo startInfo)
+        {
+            using (Process process = Process.Start(startInfo))
+            {
+                runningProcess = process;
+                while (!process.WaitForExit(300))
+                {
+                    if (cancelRequested)
+                    {
+                        TryKill(process);
+                        throw new OperationCanceledException("Cancelado pelo usuário.");
+                    }
+                }
+                runningProcess = null;
+                return process.ExitCode;
+            }
+        }
+
+        private static bool RequiresStandaloneNet35()
+        {
+            Version os = Environment.OSVersion.Version;
+            return os.Major >= 10 && os.Build >= 28000;
+        }
+
+        private static bool IsNet35Installed()
+        {
+            return RegistryInstallFlagIsSet(@"SOFTWARE\Microsoft\NET Framework Setup\NDP\v3.5") ||
+                RegistryInstallFlagIsSet(@"SOFTWARE\WOW6432Node\Microsoft\NET Framework Setup\NDP\v3.5");
+        }
+
+        private static bool IsNet48Installed()
+        {
+            string[] paths = new string[] {
+                @"SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full",
+                @"SOFTWARE\WOW6432Node\Microsoft\NET Framework Setup\NDP\v4\Full"
+            };
+
+            foreach (string path in paths)
+            {
+                try
+                {
+                    using (RegistryKey key = Registry.LocalMachine.OpenSubKey(path))
+                    {
+                        object release = key == null ? null : key.GetValue("Release");
+                        if (release != null && Convert.ToInt32(release) >= 528040) return true;
+                    }
+                }
+                catch { }
+            }
+            return false;
+        }
+
+        private static bool RegistryInstallFlagIsSet(string path)
+        {
+            try
+            {
+                using (RegistryKey key = Registry.LocalMachine.OpenSubKey(path))
+                {
+                    object installed = key == null ? null : key.GetValue("Install");
+                    return installed != null && Convert.ToInt32(installed) == 1;
+                }
+            }
+            catch { return false; }
+        }
+
         private void InstallCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
             runningProcess = null; installButton.Enabled = true; closeButton.Enabled = true; cancelButton.Enabled = false; closeWhenDone.Enabled = true;
+            SetOptionalControlsEnabled(true);
             if (e.Cancelled || cancelRequested)
             {
                 statusLabel.Text = "Instalação cancelada"; currentStepLabel.Text = "Instalação cancelada"; AppendLog("[CANCELADO] Operação interrompida."); return;
@@ -376,6 +567,13 @@ namespace VisualCppInstaller
         private void CancelInstall()
         {
             cancelRequested = true; cancelButton.Enabled = false; statusLabel.Text = "Cancelando..."; TryKill(runningProcess);
+        }
+
+        private void SetOptionalControlsEnabled(bool enabled)
+        {
+            net35CheckBox.Enabled = enabled;
+            net48CheckBox.Enabled = enabled;
+            crystal2008CheckBox.Enabled = enabled;
         }
 
         private static void TryKill(Process process)
@@ -435,10 +633,39 @@ namespace VisualCppInstaller
     internal sealed class PackageItem
     {
         public readonly string Year, Version, Arch, FileName, Url, Arguments;
+        public readonly string DisplayName, ExpectedSha256;
+        public readonly PackageKind Kind;
+        public readonly bool Optional;
         public ListViewItem Row;
+
         public PackageItem(string year, string version, string arch, string fileName, string url, string arguments)
-        { Year = year; Version = version; Arch = arch; FileName = fileName; Url = url; Arguments = arguments; }
-        public string DisplayName { get { return "Visual C++ " + Year + " " + Arch; } }
+            : this(year, version, arch, fileName, url, arguments, "Visual C++ " + year + " " + arch,
+                PackageKind.Executable, false, "")
+        {
+        }
+
+        public PackageItem(string year, string version, string arch, string fileName, string url, string arguments,
+            string displayName, PackageKind kind, bool optional, string expectedSha256)
+        {
+            Year = year;
+            Version = version;
+            Arch = arch;
+            FileName = fileName;
+            Url = url;
+            Arguments = arguments;
+            DisplayName = displayName;
+            Kind = kind;
+            Optional = optional;
+            ExpectedSha256 = expectedSha256;
+        }
+    }
+
+    internal enum PackageKind
+    {
+        Executable,
+        Msi,
+        NetFx3,
+        NetFx48
     }
 
     internal sealed class PackageIcon : Panel
