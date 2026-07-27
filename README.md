@@ -19,6 +19,16 @@ Este projeto evita a procura e a execução manual de cada instalador. Ele:
 - mostra progresso, status individual e log de erros;
 - reconhece os códigos de sucesso, versão já instalada e reinicialização pendente.
 
+## Componentes opcionais
+
+As opções abaixo só são processadas quando o respectivo checkbox estiver marcado:
+
+- **.NET Framework 3.5:** habilita o recurso `NetFx3` pelo DISM. No Windows 11 26H1, usa o instalador independente oficial da Microsoft.
+- **.NET Framework 4.8:** verifica primeiro o Registro do Windows e baixa o instalador offline oficial somente quando necessário.
+- **Crystal Reports 2008 Runtime x86:** instala silenciosamente o arquivo `CRRedist2008_x86.msi` versão `10.5.0.0`.
+
+O MSI do Crystal é validado antes da execução pelo SHA-256 `867267BBCCE888970B5633A8C527F286D80F026FBB72E63608032872D81D6257`.
+
 ## Ordem de instalação
 
 1. 2005 SP1 — x86, x64
@@ -34,7 +44,7 @@ Abra o PowerShell e execute:
 
 ```powershell
 [Net.ServicePointManager]::SecurityProtocol = 3072
-irm https://raw.githubusercontent.com/Nata-Felix/VisualCppInstaller/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/Nata-Felix/Instalador_VS-_visual/main/install.ps1 | iex
 ```
 
 O script baixa a interface e os pacotes disponíveis na release. Quando um redistribuível não está incluído na release, a própria interface usa o endereço oficial da Microsoft.
@@ -51,6 +61,7 @@ Nomes reconhecidos:
 - `vc2012_x86.exe` / `vc2012_x64.exe`
 - `vc2013_x86.exe` / `vc2013_x64.exe`
 - `vc14_x86.exe` / `vc14_x64.exe`
+- `CRRedist2008_x86.msi`
 
 ## Compilar
 
