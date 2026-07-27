@@ -95,7 +95,7 @@ namespace VisualCppInstaller
                 "https://go.microsoft.com/fwlink/?linkid=2088631", "/q /norestart",
                 ".NET Framework 4.8", PackageKind.NetFx48, true, "");
             crystal2008Package = new PackageItem("Crystal 2008", "10.5.0.0", "x86", "CRRedist2008_x86.msi",
-                "https://github.com/Nata-Felix/VisualCppInstaller/releases/download/v1.1.0/CRRedist2008_x86.msi", "",
+                "https://github.com/Nata-Felix/Instalador_VS-_visual/releases/download/v1.1.0/CRRedist2008_x86.msi", "",
                 "Crystal Reports 2008 Runtime x86", PackageKind.Msi, true,
                 "867267BBCCE888970B5633A8C527F286D80F026FBB72E63608032872D81D6257");
 

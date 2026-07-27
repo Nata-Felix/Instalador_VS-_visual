@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # Após publicar o EXE em uma release, altere apenas estas três linhas.
-$Repo = 'Nata-Felix/VisualCppInstaller'
+$Repo = 'Nata-Felix/Instalador_VS-_visual'
 $Release = 'v1.1.0'
 $Asset = 'VisualCppInstaller.exe'
 
