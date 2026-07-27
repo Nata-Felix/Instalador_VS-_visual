@@ -25,11 +25,12 @@ As opções abaixo só são processadas quando o respectivo checkbox estiver mar
 
 - **.NET Framework 3.5:** habilita o recurso `NetFx3` pelo DISM. No Windows 11 26H1, usa o instalador independente oficial da Microsoft.
 - **.NET Framework 4.8:** verifica primeiro o Registro do Windows e baixa o instalador offline oficial somente quando necessário.
-- **Crystal Reports 2008 Runtime x86:** instala silenciosamente o arquivo `CRRedist2008_x86.msi` versão `10.5.0.0`, confirma a DLL `CrystalDecisions.CrystalReports.Engine` versão `10.5.3700.0` no GAC e executa um reparo do MSI se ela estiver ausente.
+- **Crystal Reports 2008 Runtime x86:** garante o `.NET Framework 3.5`, remove registros anteriores do produto, faz uma instalação limpa do `CRRedist2008_x86.msi`, confirma a DLL `CrystalDecisions.CrystalReports.Engine` versão `10.5.3700.0` no GAC e executa um reparo do MSI se ela estiver ausente.
 - **Windows Server:** instala silenciosamente `Windows8.1-KB2999226-x64.msu` pelo `wusa.exe`. Antes da execução, habilita e inicia o serviço Windows Update e interrompe a operação quando existe atualização aguardando reinicialização.
 
 O MSI do Crystal é validado antes da execução pelo SHA-256 `867267BBCCE888970B5633A8C527F286D80F026FBB72E63608032872D81D6257`.
 Após a instalação, o caminho esperado é `%WINDIR%\assembly\GAC_MSIL\CrystalDecisions.CrystalReports.Engine\10.5.3700.0__692fbea5521e1304\CrystalDecisions.CrystalReports.Engine.dll`.
+Ao corrigir o Crystal, o instalador habilita o `NetFx3` com `dism /online /enable-feature /featurename:NetFx3 /all /norestart`. Logs detalhados do Windows Installer são gravados na Área de Trabalho.
 O MSU da Microsoft é validado pelo SHA-256 `9F707096C7D279ED4BC2A40BA695EFAC69C20406E0CA97E2B3E08443C6381D15`.
 
 ## Ordem de instalação

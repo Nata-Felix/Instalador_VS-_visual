@@ -14,8 +14,8 @@ using Microsoft.Win32;
 [assembly: AssemblyTitle("VisualCppInstaller")]
 [assembly: AssemblyProduct("Instalador Microsoft Visual C++")]
 [assembly: AssemblyCompany("SOLPPE")]
-[assembly: AssemblyVersion("1.2.1.0")]
-[assembly: AssemblyFileVersion("1.2.1.0")]
+[assembly: AssemblyVersion("1.3.0.0")]
+[assembly: AssemblyFileVersion("1.3.0.0")]
 
 namespace VisualCppInstaller
 {
@@ -69,7 +69,7 @@ namespace VisualCppInstaller
 
         public InstallerForm()
         {
-            Text = "Instalador Microsoft Visual C++ - v1.2.1";
+            Text = "Instalador Microsoft Visual C++ - v1.3.0";
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(1024, 740);
@@ -97,11 +97,11 @@ namespace VisualCppInstaller
                 "https://go.microsoft.com/fwlink/?linkid=2088631", "/q /norestart",
                 ".NET Framework 4.8", PackageKind.NetFx48, true, "");
             crystal2008Package = new PackageItem("Crystal 2008", "10.5.0.0", "x86", "CRRedist2008_x86.msi",
-                "https://github.com/Nata-Felix/Instalador_VS-_visual/releases/download/v1.2.1/CRRedist2008_x86.msi", "",
+                "https://github.com/Nata-Felix/Instalador_VS-_visual/releases/download/v1.3.0/CRRedist2008_x86.msi", "",
                 "Crystal Reports 2008 Runtime x86", PackageKind.Msi, true,
                 "867267BBCCE888970B5633A8C527F286D80F026FBB72E63608032872D81D6257");
             windowsServerPackage = new PackageItem("Windows Server", "KB2999226", "x64", "Windows8.1-KB2999226-x64.msu",
-                "https://github.com/Nata-Felix/Instalador_VS-_visual/releases/download/v1.2.1/Windows8.1-KB2999226-x64.msu", "",
+                "https://github.com/Nata-Felix/Instalador_VS-_visual/releases/download/v1.3.0/Windows8.1-KB2999226-x64.msu", "",
                 "Windows Server - KB2999226 x64", PackageKind.Msu, true,
                 "9F707096C7D279ED4BC2A40BA695EFAC69C20406E0CA97E2B3E08443C6381D15");
 
@@ -532,22 +532,53 @@ namespace VisualCppInstaller
                 return 0;
             }
 
+            EnableNetFx3ForCrystal();
             string localPath = LocateOrDownload(item);
             if (cancelRequested) throw new OperationCanceledException("Cancelado pelo usuário.");
-            int code = RunProcessAndWait(CreateInstallerProcess(item, localPath));
+
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            if (String.IsNullOrWhiteSpace(desktop) || !Directory.Exists(desktop)) desktop = cacheDir;
+            string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string installLog = Path.Combine(desktop, "CRRedist2008_msi_" + stamp + ".log");
+            string repairLog = Path.Combine(desktop, "CRRedist2008_repair_" + stamp + ".log");
+
+            AppendLog("[CORREÇÃO] Removendo registro anterior do Crystal Reports 2008.");
+            int uninstallCode = RunProcessAndWait(new ProcessStartInfo("msiexec.exe",
+                "/x {CE26F10F-C80F-4377-908B-1B7882AE2CE3} /qn /norestart") { UseShellExecute = true });
+            AppendLog("[CORREÇÃO] Desinstalação pelo ProductCode — ExitCode " + uninstallCode);
+            if (uninstallCode == 3010 || uninstallCode == 1641) restartRequired = true;
+            if (!IsMsiUninstallSuccessCode(uninstallCode))
+                throw new InvalidOperationException("Falha ao remover o registro anterior do Crystal. ExitCode " + uninstallCode);
+
+            uninstallCode = RunProcessAndWait(new ProcessStartInfo("msiexec.exe",
+                "/x \"" + localPath + "\" /qn /norestart")
+                { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(localPath) });
+            AppendLog("[CORREÇÃO] Desinstalação pelo MSI — ExitCode " + uninstallCode);
+            if (uninstallCode == 3010 || uninstallCode == 1641) restartRequired = true;
+            if (!IsMsiUninstallSuccessCode(uninstallCode))
+                throw new InvalidOperationException("Falha ao limpar a instalação anterior do Crystal. ExitCode " + uninstallCode);
+
+            AppendLog("[CORREÇÃO] Executando instalação limpa. Log MSI: " + installLog);
+            ProcessStartInfo cleanInstall = new ProcessStartInfo("msiexec.exe",
+                "/i \"" + localPath + "\" /qn /norestart /l*v \"" + installLog + "\"")
+                { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(localPath) };
+            int code = RunProcessAndWait(cleanInstall);
             if (code == 3010 || code == 1641) restartRequired = true;
             if (!IsMsiSuccessCode(code)) throw new InvalidOperationException("ExitCode " + code);
 
             if (!IsCrystalEngineInstalled())
             {
                 AppendLog("[REPARO] A DLL do Crystal não apareceu no GAC. Executando reparo completo do MSI.");
-                ProcessStartInfo repair = new ProcessStartInfo("msiexec.exe", "/fa \"" + localPath + "\" /qn /norestart")
+                AppendLog("[REPARO] Log MSI: " + repairLog);
+                ProcessStartInfo repair = new ProcessStartInfo("msiexec.exe",
+                    "/fa \"" + localPath + "\" /qn /norestart /l*v \"" + repairLog + "\"")
                 { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(localPath) };
                 code = RunProcessAndWait(repair);
                 if (code == 3010 || code == 1641) restartRequired = true;
                 if (!IsMsiSuccessCode(code)) throw new InvalidOperationException("Falha ao reparar o Crystal. ExitCode " + code);
             }
 
+            Thread.Sleep(2000);
             if (!IsCrystalEngineInstalled())
                 throw new FileNotFoundException("O MSI foi processado, mas a DLL do Crystal não foi registrada no GAC esperado.", gacPath);
 
@@ -555,9 +586,45 @@ namespace VisualCppInstaller
             return code;
         }
 
+        private void EnableNetFx3ForCrystal()
+        {
+            if (IsNet35Installed())
+            {
+                AppendLog("[DEPENDÊNCIA] .NET Framework 3.5 já está habilitado.");
+                return;
+            }
+
+            UpdateRow(net35Package, "Dependência", Color.FromArgb(232, 244, 255));
+            AppendLog("[DEPENDÊNCIA] Habilitando .NET Framework 3.5 para o Crystal Reports.");
+            int code;
+            if (RequiresStandaloneNet35())
+            {
+                string local = LocateOrDownload(net35Package);
+                code = RunProcessAndWait(CreateInstallerProcess(net35Package, local));
+            }
+            else
+            {
+                AppendLog("[DISM] dism /online /enable-feature /featurename:NetFx3 /all /norestart");
+                code = RunProcessAndWait(new ProcessStartInfo("dism.exe",
+                    "/Online /Enable-Feature /FeatureName:NetFx3 /All /NoRestart")
+                    { UseShellExecute = false, CreateNoWindow = true });
+            }
+
+            if (code == 3010 || code == 1641) restartRequired = true;
+            if (code != 0 && code != 3010 && code != 1641)
+                throw new InvalidOperationException("Falha ao habilitar o .NET Framework 3.5. ExitCode " + code);
+            UpdateRow(net35Package, "Concluído", Color.FromArgb(232, 250, 238));
+            AppendLog("[DEPENDÊNCIA] .NET Framework 3.5 processado — ExitCode " + code);
+        }
+
         private static bool IsMsiSuccessCode(int code)
         {
             return code == 0 || code == 1638 || code == 3010 || code == 1641;
+        }
+
+        private static bool IsMsiUninstallSuccessCode(int code)
+        {
+            return code == 0 || code == 1605 || code == 1614 || code == 3010 || code == 1641;
         }
 
         private static string GetCrystalEngineGacPath()
@@ -575,8 +642,11 @@ namespace VisualCppInstaller
                 if (!File.Exists(path)) return false;
                 AssemblyName name = AssemblyName.GetAssemblyName(path);
                 string token = BitConverter.ToString(name.GetPublicKeyToken()).Replace("-", "").ToLowerInvariant();
-                return name.Name == "CrystalDecisions.CrystalReports.Engine" &&
-                    name.Version == new Version(10, 5, 3700, 0) && token == "692fbea5521e1304";
+                if (name.Name != "CrystalDecisions.CrystalReports.Engine" ||
+                    name.Version != new Version(10, 5, 3700, 0) || token != "692fbea5521e1304") return false;
+
+                Assembly loaded = Assembly.Load("CrystalDecisions.CrystalReports.Engine, Version=10.5.3700.0, Culture=neutral, PublicKeyToken=692fbea5521e1304");
+                return loaded != null && loaded.GetName().Version == new Version(10, 5, 3700, 0);
             }
             catch { return false; }
         }
