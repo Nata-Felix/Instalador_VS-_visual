@@ -14,8 +14,8 @@ using Microsoft.Win32;
 [assembly: AssemblyTitle("VisualCppInstaller")]
 [assembly: AssemblyProduct("Instalador Microsoft Visual C++")]
 [assembly: AssemblyCompany("SOLPPE")]
-[assembly: AssemblyVersion("1.2.0.0")]
-[assembly: AssemblyFileVersion("1.2.0.0")]
+[assembly: AssemblyVersion("1.2.1.0")]
+[assembly: AssemblyFileVersion("1.2.1.0")]
 
 namespace VisualCppInstaller
 {
@@ -69,7 +69,7 @@ namespace VisualCppInstaller
 
         public InstallerForm()
         {
-            Text = "Instalador Microsoft Visual C++ - v1.2.0";
+            Text = "Instalador Microsoft Visual C++ - v1.2.1";
             AutoScaleDimensions = new SizeF(96F, 96F);
             AutoScaleMode = AutoScaleMode.Dpi;
             ClientSize = new Size(1024, 740);
@@ -97,11 +97,11 @@ namespace VisualCppInstaller
                 "https://go.microsoft.com/fwlink/?linkid=2088631", "/q /norestart",
                 ".NET Framework 4.8", PackageKind.NetFx48, true, "");
             crystal2008Package = new PackageItem("Crystal 2008", "10.5.0.0", "x86", "CRRedist2008_x86.msi",
-                "https://github.com/Nata-Felix/Instalador_VS-_visual/releases/download/v1.2.0/CRRedist2008_x86.msi", "",
+                "https://github.com/Nata-Felix/Instalador_VS-_visual/releases/download/v1.2.1/CRRedist2008_x86.msi", "",
                 "Crystal Reports 2008 Runtime x86", PackageKind.Msi, true,
                 "867267BBCCE888970B5633A8C527F286D80F026FBB72E63608032872D81D6257");
             windowsServerPackage = new PackageItem("Windows Server", "KB2999226", "x64", "Windows8.1-KB2999226-x64.msu",
-                "https://github.com/Nata-Felix/Instalador_VS-_visual/releases/download/v1.2.0/Windows8.1-KB2999226-x64.msu", "",
+                "https://github.com/Nata-Felix/Instalador_VS-_visual/releases/download/v1.2.1/Windows8.1-KB2999226-x64.msu", "",
                 "Windows Server - KB2999226 x64", PackageKind.Msu, true,
                 "9F707096C7D279ED4BC2A40BA695EFAC69C20406E0CA97E2B3E08443C6381D15");
 
@@ -343,7 +343,11 @@ namespace VisualCppInstaller
                     int code;
                     bool alreadyInstalled = false;
 
-                    if (p.Kind == PackageKind.NetFx3 && IsNet35Installed())
+                    if (p == crystal2008Package)
+                    {
+                        code = InstallCrystalRuntime(p, out alreadyInstalled);
+                    }
+                    else if (p.Kind == PackageKind.NetFx3 && IsNet35Installed())
                     {
                         code = 0;
                         alreadyInstalled = true;
@@ -515,6 +519,66 @@ namespace VisualCppInstaller
 
             return new ProcessStartInfo(localPath, item.Arguments)
             { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(localPath) };
+        }
+
+        private int InstallCrystalRuntime(PackageItem item, out bool alreadyInstalled)
+        {
+            alreadyInstalled = false;
+            string gacPath = GetCrystalEngineGacPath();
+            if (IsCrystalEngineInstalled())
+            {
+                alreadyInstalled = true;
+                AppendLog("[GAC] Crystal Reports Engine confirmado em " + gacPath);
+                return 0;
+            }
+
+            string localPath = LocateOrDownload(item);
+            if (cancelRequested) throw new OperationCanceledException("Cancelado pelo usuário.");
+            int code = RunProcessAndWait(CreateInstallerProcess(item, localPath));
+            if (code == 3010 || code == 1641) restartRequired = true;
+            if (!IsMsiSuccessCode(code)) throw new InvalidOperationException("ExitCode " + code);
+
+            if (!IsCrystalEngineInstalled())
+            {
+                AppendLog("[REPARO] A DLL do Crystal não apareceu no GAC. Executando reparo completo do MSI.");
+                ProcessStartInfo repair = new ProcessStartInfo("msiexec.exe", "/fa \"" + localPath + "\" /qn /norestart")
+                { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(localPath) };
+                code = RunProcessAndWait(repair);
+                if (code == 3010 || code == 1641) restartRequired = true;
+                if (!IsMsiSuccessCode(code)) throw new InvalidOperationException("Falha ao reparar o Crystal. ExitCode " + code);
+            }
+
+            if (!IsCrystalEngineInstalled())
+                throw new FileNotFoundException("O MSI foi processado, mas a DLL do Crystal não foi registrada no GAC esperado.", gacPath);
+
+            AppendLog("[GAC] Crystal Reports Engine instalado em " + gacPath);
+            return code;
+        }
+
+        private static bool IsMsiSuccessCode(int code)
+        {
+            return code == 0 || code == 1638 || code == 3010 || code == 1641;
+        }
+
+        private static string GetCrystalEngineGacPath()
+        {
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "assembly", "GAC_MSIL",
+                "CrystalDecisions.CrystalReports.Engine", "10.5.3700.0__692fbea5521e1304",
+                "CrystalDecisions.CrystalReports.Engine.dll");
+        }
+
+        private static bool IsCrystalEngineInstalled()
+        {
+            string path = GetCrystalEngineGacPath();
+            try
+            {
+                if (!File.Exists(path)) return false;
+                AssemblyName name = AssemblyName.GetAssemblyName(path);
+                string token = BitConverter.ToString(name.GetPublicKeyToken()).Replace("-", "").ToLowerInvariant();
+                return name.Name == "CrystalDecisions.CrystalReports.Engine" &&
+                    name.Version == new Version(10, 5, 3700, 0) && token == "692fbea5521e1304";
+            }
+            catch { return false; }
         }
 
         private int RunProcessAndWait(ProcessStartInfo startInfo)

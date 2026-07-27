@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 
 # Após publicar o EXE em uma release, altere apenas estas três linhas.
 $Repo = 'Nata-Felix/Instalador_VS-_visual'
-$Release = 'v1.2.0'
+$Release = 'v1.2.1'
 $Asset = 'VisualCppInstaller.exe'
 
 $BaseUrl = "https://github.com/$Repo/releases/download/$Release"
