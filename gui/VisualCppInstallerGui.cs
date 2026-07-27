@@ -14,8 +14,8 @@ using Microsoft.Win32;
 [assembly: AssemblyTitle("VisualCppInstaller")]
 [assembly: AssemblyProduct("Instalador Microsoft Visual C++")]
 [assembly: AssemblyCompany("SOLPPE")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 
 namespace VisualCppInstaller
 {
@@ -55,9 +55,11 @@ namespace VisualCppInstaller
         private readonly CheckBox net35CheckBox = new CheckBox();
         private readonly CheckBox net48CheckBox = new CheckBox();
         private readonly CheckBox crystal2008CheckBox = new CheckBox();
+        private readonly CheckBox windowsServerCheckBox = new CheckBox();
         private PackageItem net35Package;
         private PackageItem net48Package;
         private PackageItem crystal2008Package;
+        private PackageItem windowsServerPackage;
         private BackgroundWorker worker;
         private volatile bool cancelRequested;
         private Process runningProcess;
@@ -67,10 +69,10 @@ namespace VisualCppInstaller
 
         public InstallerForm()
         {
-            Text = "Instalador Microsoft Visual C++";
-            Width = 1024;
-            Height = 660;
-            MinimumSize = new Size(1024, 660);
+            Text = "Instalador Microsoft Visual C++ - v1.2.0";
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            ClientSize = new Size(1024, 740);
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.White;
             Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point);
@@ -95,12 +97,18 @@ namespace VisualCppInstaller
                 "https://go.microsoft.com/fwlink/?linkid=2088631", "/q /norestart",
                 ".NET Framework 4.8", PackageKind.NetFx48, true, "");
             crystal2008Package = new PackageItem("Crystal 2008", "10.5.0.0", "x86", "CRRedist2008_x86.msi",
-                "https://github.com/Nata-Felix/Instalador_VS-_visual/releases/download/v1.1.0/CRRedist2008_x86.msi", "",
+                "https://github.com/Nata-Felix/Instalador_VS-_visual/releases/download/v1.2.0/CRRedist2008_x86.msi", "",
                 "Crystal Reports 2008 Runtime x86", PackageKind.Msi, true,
                 "867267BBCCE888970B5633A8C527F286D80F026FBB72E63608032872D81D6257");
+            windowsServerPackage = new PackageItem("Windows Server", "KB2999226", "x64", "Windows8.1-KB2999226-x64.msu",
+                "https://github.com/Nata-Felix/Instalador_VS-_visual/releases/download/v1.2.0/Windows8.1-KB2999226-x64.msu", "",
+                "Windows Server - KB2999226 x64", PackageKind.Msu, true,
+                "9F707096C7D279ED4BC2A40BA695EFAC69C20406E0CA97E2B3E08443C6381D15");
 
             displayItems.Add(net35Package);
             displayItems.Add(net48Package);
+            displayItems.Add(crystal2008Package);
+            displayItems.Add(windowsServerPackage);
 
             AddVisualCpp(new PackageItem("2005 SP1", "8.0.61001", "x86", "vc2005_x86.exe",
                 "https://download.microsoft.com/download/8/b/4/8b42259f-5d70-43f4-ac2e-4b208fd8d66a/vcredist_x86.EXE", "/Q"));
@@ -126,8 +134,6 @@ namespace VisualCppInstaller
                 "https://aka.ms/vc14/vc_redist.x86.exe", "/install /quiet /norestart"));
             AddVisualCpp(new PackageItem("2015-2025 (v14)", "mais recente", "x64", "vc14_x64.exe",
                 "https://aka.ms/vc14/vc_redist.x64.exe", "/install /quiet /norestart"));
-
-            displayItems.Add(crystal2008Package);
         }
 
         private void AddVisualCpp(PackageItem item)
@@ -168,8 +174,8 @@ namespace VisualCppInstaller
 
         private void BuildContent(Control root)
         {
-            root.Controls.Add(SectionLabel("Opção de instalação", 44, 158, 340));
-            Panel option = new Panel { Left = 42, Top = 186, Width = 358, Height = 156, BackColor = lightBlue };
+            root.Controls.Add(SectionLabel("Componentes opcionais", 44, 158, 340));
+            Panel option = new Panel { Left = 42, Top = 186, Width = 358, Height = 190, BackColor = lightBlue };
             option.Paint += delegate(object sender, PaintEventArgs e) {
                 using (Pen p = new Pen(Color.FromArgb(54, 140, 230))) e.Graphics.DrawRectangle(p, 0, 0, option.Width - 1, option.Height - 1);
             };
@@ -181,13 +187,15 @@ namespace VisualCppInstaller
             ConfigureOptionalCheckBox(net35CheckBox, "Adicionar .NET Framework 3.5", 76);
             ConfigureOptionalCheckBox(net48CheckBox, "Adicionar .NET Framework 4.8", 101);
             ConfigureOptionalCheckBox(crystal2008CheckBox, "Adicionar Crystal Reports 2008 (x86)", 126);
+            ConfigureOptionalCheckBox(windowsServerCheckBox, "Windows Server", 151);
             option.Controls.Add(net35CheckBox);
             option.Controls.Add(net48CheckBox);
             option.Controls.Add(crystal2008CheckBox);
+            option.Controls.Add(windowsServerCheckBox);
             root.Controls.Add(option);
 
-            root.Controls.Add(SectionLabel("Ordem dos pacotes", 44, 354, 340));
-            packageList.Left = 42; packageList.Top = 382; packageList.Width = 358; packageList.Height = 168;
+            root.Controls.Add(SectionLabel("Ordem dos pacotes", 44, 394, 340));
+            packageList.Left = 42; packageList.Top = 422; packageList.Width = 358; packageList.Height = 208;
             packageList.View = View.Details; packageList.FullRowSelect = true; packageList.GridLines = true;
             packageList.HeaderStyle = ColumnHeaderStyle.Nonclickable; packageList.MultiSelect = false;
             packageList.Columns.Add("Componente", 100); packageList.Columns.Add("Versão", 95); packageList.Columns.Add("Arq.", 45); packageList.Columns.Add("Status", 95);
@@ -206,7 +214,7 @@ namespace VisualCppInstaller
             currentStepLabel.ForeColor = Color.FromArgb(35, 43, 55); root.Controls.Add(currentStepLabel);
 
             root.Controls.Add(SectionLabel("Log de execução", 420, 294, 360));
-            logBox.Left = 420; logBox.Top = 322; logBox.Width = 560; logBox.Height = 228; logBox.ReadOnly = true;
+            logBox.Left = 420; logBox.Top = 322; logBox.Width = 560; logBox.Height = 308; logBox.ReadOnly = true;
             logBox.ScrollBars = RichTextBoxScrollBars.Vertical; logBox.Font = new Font("Consolas", 9.25F); logBox.BackColor = Color.White;
             logBox.BorderStyle = BorderStyle.FixedSingle; root.Controls.Add(logBox);
 
@@ -229,12 +237,12 @@ namespace VisualCppInstaller
 
         private void BuildFooter(Control root)
         {
-            root.Controls.Add(new Panel { Left = 0, Top = 564, Width = 1024, Height = 1, BackColor = border });
-            InfoCircle info = new InfoCircle { Left = 40, Top = 588, Width = 18, Height = 18, ForeColor = blue };
+            root.Controls.Add(new Panel { Left = 0, Top = 644, Width = 1024, Height = 1, BackColor = border });
+            InfoCircle info = new InfoCircle { Left = 40, Top = 668, Width = 18, Height = 18, ForeColor = blue };
             root.Controls.Add(info);
-            statusLabel.Text = "Pronto para iniciar"; statusLabel.Left = 62; statusLabel.Top = 590; statusLabel.Width = 300; statusLabel.Height = 24;
+            statusLabel.Text = "Pronto para iniciar"; statusLabel.Left = 62; statusLabel.Top = 670; statusLabel.Width = 300; statusLabel.Height = 24;
             root.Controls.Add(statusLabel);
-            closeWhenDone.Text = "Fechar automaticamente ao finalizar"; closeWhenDone.Left = 364; closeWhenDone.Top = 584;
+            closeWhenDone.Text = "Fechar automaticamente ao finalizar"; closeWhenDone.Left = 364; closeWhenDone.Top = 664;
             closeWhenDone.Width = 225; closeWhenDone.Height = 24; root.Controls.Add(closeWhenDone);
 
             ConfigureButton(installButton, "Instalar", 604, 150, true);
@@ -255,7 +263,7 @@ namespace VisualCppInstaller
 
         private void ConfigureButton(Button button, string text, int left, int width, bool primary)
         {
-            button.Text = text; button.Left = left; button.Top = 572; button.Width = width; button.Height = 40;
+            button.Text = text; button.Left = left; button.Top = 652; button.Width = width; button.Height = 40;
             button.FlatStyle = FlatStyle.Flat; button.FlatAppearance.BorderColor = primary ? Color.FromArgb(0, 76, 170) : border;
             button.BackColor = primary ? Color.FromArgb(0, 104, 210) : Color.White;
             button.ForeColor = primary ? Color.White : Color.FromArgb(38, 48, 64);
@@ -284,6 +292,7 @@ namespace VisualCppInstaller
             if (net48CheckBox.Checked) plan.Add(net48Package);
             plan.AddRange(packages);
             if (crystal2008CheckBox.Checked) plan.Add(crystal2008Package);
+            if (windowsServerCheckBox.Checked) plan.Add(windowsServerPackage);
 
             cancelRequested = false; restartRequired = false; failures = 0; logBox.Clear(); SetProgress(0);
             foreach (PackageItem p in displayItems)
@@ -344,6 +353,11 @@ namespace VisualCppInstaller
                         code = 0;
                         alreadyInstalled = true;
                     }
+                    else if (p.Kind == PackageKind.Msu && IsKb2999226Installed())
+                    {
+                        code = 0;
+                        alreadyInstalled = true;
+                    }
                     else if (p.Kind == PackageKind.NetFx3 && !RequiresStandaloneNet35())
                     {
                         code = RunProcessAndWait(new ProcessStartInfo("dism.exe", "/Online /Enable-Feature /FeatureName:NetFx3 /All /NoRestart")
@@ -351,13 +365,15 @@ namespace VisualCppInstaller
                     }
                     else
                     {
+                        if (p.Kind == PackageKind.Msu) EnsureWindowsUpdateReady();
                         string local = LocateOrDownload(p);
                         if (cancelRequested) { e.Cancel = true; return; }
                         code = RunProcessAndWait(CreateInstallerProcess(p, local));
                     }
 
-                    if (code == 3010 || code == 1641) restartRequired = true;
-                    if (code != 0 && code != 1638 && code != 3010 && code != 1641)
+                    if (code == 3010 || code == 1641 || code == 2359301) restartRequired = true;
+                    if (code == 2359302) alreadyInstalled = true;
+                    if (code != 0 && code != 1638 && code != 3010 && code != 1641 && code != 2359301 && code != 2359302)
                         throw new InvalidOperationException("ExitCode " + code);
                     UpdateRow(p, alreadyInstalled || code == 1638 ? "Já instalado" : "Concluído", Color.FromArgb(232, 250, 238));
                     AppendLog("[OK] " + p.DisplayName + " — " + (alreadyInstalled ? "já estava instalado" : "ExitCode " + code));
@@ -448,9 +464,26 @@ namespace VisualCppInstaller
             catch { return false; }
         }
 
+        private static bool IsMsu(string path)
+        {
+            byte[] signature = new byte[] { 0x4D, 0x53, 0x43, 0x46 };
+            try
+            {
+                if (!File.Exists(path) || new FileInfo(path).Length < 1024) return false;
+                using (FileStream stream = File.OpenRead(path))
+                {
+                    for (int i = 0; i < signature.Length; i++)
+                        if (stream.ReadByte() != signature[i]) return false;
+                }
+                return true;
+            }
+            catch { return false; }
+        }
+
         private static bool IsPackageValid(PackageItem item, string path)
         {
-            bool validType = item.Kind == PackageKind.Msi ? IsMsi(path) : IsExecutable(path);
+            bool validType = item.Kind == PackageKind.Msi ? IsMsi(path) :
+                item.Kind == PackageKind.Msu ? IsMsu(path) : IsExecutable(path);
             if (!validType) return false;
             if (String.IsNullOrWhiteSpace(item.ExpectedSha256)) return true;
 
@@ -472,6 +505,12 @@ namespace VisualCppInstaller
             {
                 return new ProcessStartInfo("msiexec.exe", "/i \"" + localPath + "\" /qn /norestart")
                 { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(localPath) };
+            }
+
+            if (item.Kind == PackageKind.Msu)
+            {
+                return new ProcessStartInfo("wusa.exe", "\"" + localPath + "\" /quiet /norestart")
+                { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = Path.GetDirectoryName(localPath) };
             }
 
             return new ProcessStartInfo(localPath, item.Arguments)
@@ -530,6 +569,91 @@ namespace VisualCppInstaller
             return false;
         }
 
+        private static bool IsKb2999226Installed()
+        {
+            try
+            {
+                using (RegistryKey packagesKey = Registry.LocalMachine.OpenSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\Packages"))
+                {
+                    if (packagesKey == null) return false;
+                    foreach (string packageName in packagesKey.GetSubKeyNames())
+                    {
+                        if (packageName.IndexOf("KB2999226", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                        using (RegistryKey packageKey = packagesKey.OpenSubKey(packageName))
+                        {
+                            object state = packageKey == null ? null : packageKey.GetValue("CurrentState");
+                            if (state != null && Convert.ToInt32(state) == 112) return true;
+                        }
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private void EnsureWindowsUpdateReady()
+        {
+            if (IsWindowsUpdatePending())
+                throw new InvalidOperationException("O Windows Update possui uma instalação em andamento ou reinicialização pendente. Conclua-a e reinicie o servidor antes de continuar.");
+
+            AppendLog("[WINDOWS UPDATE] Habilitando o serviço Windows Update.");
+            int configCode = RunProcessAndWait(new ProcessStartInfo("sc.exe", "config wuauserv start= demand")
+            { UseShellExecute = false, CreateNoWindow = true });
+            if (configCode != 0) throw new InvalidOperationException("Não foi possível habilitar o Windows Update. ExitCode " + configCode);
+
+            int startCode = RunProcessAndWait(new ProcessStartInfo("sc.exe", "start wuauserv")
+            { UseShellExecute = false, CreateNoWindow = true });
+            if (startCode != 0 && startCode != 1056)
+                throw new InvalidOperationException("Não foi possível iniciar o Windows Update. ExitCode " + startCode);
+
+            if (IsWindowsUpdatePending())
+                throw new InvalidOperationException("O Windows Update possui uma instalação em andamento ou reinicialização pendente. Conclua-a e reinicie o servidor antes de continuar.");
+            AppendLog("[WINDOWS UPDATE] Serviço habilitado e sem reinicialização pendente.");
+        }
+
+        private static bool IsWindowsUpdatePending()
+        {
+            try { if (Process.GetProcessesByName("wusa").Length > 0) return true; }
+            catch { }
+
+            string[] keys = new string[] {
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending",
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired"
+            };
+            foreach (string path in keys)
+            {
+                try { using (RegistryKey key = Registry.LocalMachine.OpenSubKey(path)) { if (key != null) return true; } }
+                catch { }
+            }
+
+            try
+            {
+                Type systemInfoType = Type.GetTypeFromProgID("Microsoft.Update.SystemInfo");
+                if (systemInfoType != null)
+                {
+                    object systemInfo = Activator.CreateInstance(systemInfoType);
+                    object value = systemInfoType.InvokeMember("RebootRequired", BindingFlags.GetProperty, null, systemInfo, null);
+                    if (value != null && Convert.ToBoolean(value)) return true;
+                }
+            }
+            catch { }
+
+            try
+            {
+                Type sessionType = Type.GetTypeFromProgID("Microsoft.Update.Session");
+                if (sessionType != null)
+                {
+                    object session = Activator.CreateInstance(sessionType);
+                    object installer = sessionType.InvokeMember("CreateUpdateInstaller", BindingFlags.InvokeMethod, null, session, null);
+                    object busy = installer.GetType().InvokeMember("IsBusy", BindingFlags.GetProperty, null, installer, null);
+                    if (busy != null && Convert.ToBoolean(busy)) return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
         private static bool RegistryInstallFlagIsSet(string path)
         {
             try
@@ -574,6 +698,7 @@ namespace VisualCppInstaller
             net35CheckBox.Enabled = enabled;
             net48CheckBox.Enabled = enabled;
             crystal2008CheckBox.Enabled = enabled;
+            windowsServerCheckBox.Enabled = enabled;
         }
 
         private static void TryKill(Process process)
@@ -664,6 +789,7 @@ namespace VisualCppInstaller
     {
         Executable,
         Msi,
+        Msu,
         NetFx3,
         NetFx48
     }

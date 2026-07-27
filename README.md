@@ -26,8 +26,10 @@ As opções abaixo só são processadas quando o respectivo checkbox estiver mar
 - **.NET Framework 3.5:** habilita o recurso `NetFx3` pelo DISM. No Windows 11 26H1, usa o instalador independente oficial da Microsoft.
 - **.NET Framework 4.8:** verifica primeiro o Registro do Windows e baixa o instalador offline oficial somente quando necessário.
 - **Crystal Reports 2008 Runtime x86:** instala silenciosamente o arquivo `CRRedist2008_x86.msi` versão `10.5.0.0`.
+- **Windows Server:** instala silenciosamente `Windows8.1-KB2999226-x64.msu` pelo `wusa.exe`. Antes da execução, habilita e inicia o serviço Windows Update e interrompe a operação quando existe atualização aguardando reinicialização.
 
 O MSI do Crystal é validado antes da execução pelo SHA-256 `867267BBCCE888970B5633A8C527F286D80F026FBB72E63608032872D81D6257`.
+O MSU da Microsoft é validado pelo SHA-256 `9F707096C7D279ED4BC2A40BA695EFAC69C20406E0CA97E2B3E08443C6381D15`.
 
 ## Ordem de instalação
 
@@ -62,6 +64,7 @@ Nomes reconhecidos:
 - `vc2013_x86.exe` / `vc2013_x64.exe`
 - `vc14_x86.exe` / `vc14_x64.exe`
 - `CRRedist2008_x86.msi`
+- `Windows8.1-KB2999226-x64.msu`
 
 ## Compilar
 
@@ -76,6 +79,6 @@ O compilador C# do .NET Framework gera `VisualCppInstaller.exe` na raiz do proje
 ## Observações
 
 - Os redistribuíveis antigos não têm mais suporte da Microsoft, mas podem continuar necessários para aplicações legadas.
-- Códigos de saída `0`, `1638`, `3010` e `1641` são tratados como resultados válidos.
-- Os códigos `3010` e `1641` indicam que o Windows precisa ser reiniciado.
+- Códigos de saída `0`, `1638`, `3010`, `1641`, `2359301` e `2359302` são tratados como resultados válidos.
+- Os códigos `3010`, `1641` e `2359301` indicam que o Windows precisa ser reiniciado.
 - Os instaladores são distribuídos pela Microsoft; este projeto apenas automatiza download e execução.
