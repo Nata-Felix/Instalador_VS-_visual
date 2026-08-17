@@ -48,7 +48,7 @@ Abra o PowerShell e execute:
 
 ```powershell
 [Net.ServicePointManager]::SecurityProtocol = 3072
-irm https://raw.githubusercontent.com/Nata-Felix/Instalador_VS-_visual/main/install.ps1 | iex
+irm https://github.com/Nata-Felix/instalador-vs-redist/releases/download/v1.3.0/install.ps1 | iex
 ```
 
 O script baixa a interface e os pacotes disponíveis na release. Quando um redistribuível não está incluído na release, a própria interface usa o endereço oficial da Microsoft.
